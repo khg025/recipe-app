@@ -186,7 +186,7 @@ body.dark .action-bar { background:#2A2318; border-color:#3a3020; }
 </head>
 <body>
 
-<header>🍳 菜谱</header>
+<header>🍳 菜谱<span id="sync-badge" style="font-size:.6rem;margin-left:8px;opacity:.7;vertical-align:middle;background:#ffffff20;padding:2px 8px;border-radius:10px;">🔄 同步中</span></header>
 
 <nav>
   <button data-tab="recipes" class="active"><span>📖</span> 菜谱</button>
@@ -209,8 +209,12 @@ body.dark .action-bar { background:#2A2318; border-color:#3a3020; }
 <input type="file" accept=".json" class="hidden-input" id="import-file">
 
 <script>
-// ============ DATA LAYER ============
-const STORAGE_KEY = 'recipe_app_data';
+// ============ FIREBASE CONFIG ============
+const DB_URL = 'https://recipe-app-ff144-default-rtdb.asia-southeast1.firebasedatabase.app';
+let appData = { recipes: [], menu: [] };
+let dataVersion = 0;
+let syncing = false;
+
 const MEALS = [
   { key:'breakfast', name:'早餐', icon:'🌅', color:'#F4B436' },
   { key:'lunch', name:'午餐', icon:'☀️', color:'#E8772E' },
@@ -219,11 +223,33 @@ const MEALS = [
 ];
 const WEEKDYS = ['一','二','三','四','五','六','日'];
 
-function load() {
-  try { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {recipes:[], menu:[]}; }
-  catch(e) { return {recipes:[], menu:[]}; }
+// ============ FIREBASE REST API ============
+async function fetchData() {
+  try {
+    const r = await fetch(`${DB_URL}/.json`);
+    if (!r.ok) throw new Error('fetch failed');
+    const data = await r.json();
+    if (data && data.version && data.version > dataVersion) {
+      appData = { recipes: data.recipes || [], menu: data.menu || [] };
+      dataVersion = data.version;
+    }
+    return appData;
+  } catch(e) { return appData; }
 }
-function save(data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(data)); }
+
+async function pushData() {
+  if (syncing) return;
+  syncing = true;
+  try {
+    dataVersion++;
+    const payload = { ...appData, version: dataVersion };
+    await fetch(`${DB_URL}/.json`, { method:'PUT', body:JSON.stringify(payload) });
+  } catch(e) { toast('同步失败，请检查网络'); }
+  syncing = false;
+}
+
+function load() { return appData; }
+async function save() { await pushData(); }
 
 function uuid() { return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
 
@@ -237,8 +263,8 @@ function newIngredient() { return { name:'', amount:'', unit:'g' }; }
 function newStep() { return { instruction:'', time:0 }; }
 
 // ============ SEED SAMPLE DATA ============
-function seedIfEmpty() {
-  const data = load();
+async function seedIfEmpty() {
+  const data = await fetchData();
   if (data.recipes.length > 0) return;
 
   const tomatoEgg = newRecipe('西红柿炒鸡蛋');
@@ -246,20 +272,14 @@ function seedIfEmpty() {
   tomatoEgg.cuisine = '中式'; tomatoEgg.difficulty = 'easy';
   tomatoEgg.prepTime = 5; tomatoEgg.cookTime = 10; tomatoEgg.servings = 2;
   tomatoEgg.ingredients = [
-    { name:'鸡蛋', amount:'3', unit:'个' },
-    { name:'西红柿', amount:'2', unit:'个' },
-    { name:'葱', amount:'1', unit:'根' },
-    { name:'盐', amount:'1', unit:'小勺' },
-    { name:'糖', amount:'0.5', unit:'小勺' },
-    { name:'食用油', amount:'2', unit:'大勺' },
+    { name:'鸡蛋', amount:'3', unit:'个' }, { name:'西红柿', amount:'2', unit:'个' },
+    { name:'葱', amount:'1', unit:'根' }, { name:'盐', amount:'1', unit:'小勺' },
+    { name:'糖', amount:'0.5', unit:'小勺' }, { name:'食用油', amount:'2', unit:'大勺' },
   ];
   tomatoEgg.steps = [
-    { instruction:'鸡蛋打散加盐搅匀', time:1 },
-    { instruction:'西红柿切块，葱切葱花', time:2 },
-    { instruction:'热油炒鸡蛋至凝固盛出', time:2 },
-    { instruction:'炒西红柿出汁', time:3 },
-    { instruction:'倒回鸡蛋，加盐糖调味', time:1 },
-    { instruction:'撒葱花出锅', time:1 },
+    { instruction:'鸡蛋打散加盐搅匀', time:1 }, { instruction:'西红柿切块，葱切葱花', time:2 },
+    { instruction:'热油炒鸡蛋至凝固盛出', time:2 }, { instruction:'炒西红柿出汁', time:3 },
+    { instruction:'倒回鸡蛋，加盐糖调味', time:1 }, { instruction:'撒葱花出锅', time:1 },
   ];
 
   const braisedPork = newRecipe('红烧肉');
@@ -267,12 +287,9 @@ function seedIfEmpty() {
   braisedPork.cuisine = '中式'; braisedPork.difficulty = 'medium';
   braisedPork.prepTime = 15; braisedPork.cookTime = 90; braisedPork.servings = 4;
   braisedPork.ingredients = [
-    { name:'五花肉', amount:'500', unit:'g' },
-    { name:'冰糖', amount:'30', unit:'g' },
-    { name:'生抽', amount:'2', unit:'大勺' },
-    { name:'老抽', amount:'1', unit:'大勺' },
-    { name:'料酒', amount:'2', unit:'大勺' },
-    { name:'姜', amount:'3', unit:'片' },
+    { name:'五花肉', amount:'500', unit:'g' }, { name:'冰糖', amount:'30', unit:'g' },
+    { name:'生抽', amount:'2', unit:'大勺' }, { name:'老抽', amount:'1', unit:'大勺' },
+    { name:'料酒', amount:'2', unit:'大勺' }, { name:'姜', amount:'3', unit:'片' },
     { name:'八角', amount:'2', unit:'颗' },
   ];
   braisedPork.steps = [
@@ -285,8 +302,8 @@ function seedIfEmpty() {
     { instruction:'大火收汁至浓稠', time:5 },
   ];
 
-  data.recipes = [tomatoEgg, braisedPork];
-  save(data);
+  appData.recipes = [tomatoEgg, braisedPork];
+  await pushData();
 }
 
 // ============ ROUTING ============
@@ -295,10 +312,11 @@ let currentView = 'list'; // list | detail | form
 let editingId = null;
 let cuisineFilter = '';
 
-function navigate(tab, view='list', id=null) {
+async function navigate(tab, view='list', id=null) {
   currentTab = tab;
   currentView = view;
   editingId = id;
+  await fetchData();
   render();
 }
 
@@ -316,7 +334,7 @@ function render() {
 }
 
 function renderRecipes() {
-  const data = load();
+  const data = appData;
   const el = document.getElementById('tab-recipes');
 
   if (currentView === 'detail') {
@@ -502,7 +520,7 @@ function renderForm(existing) {
 
 // ============ RECIPES CRUD ============
 function saveRecipe(id, isEdit) {
-  const data = load();
+  const data = appData;
   const r = isEdit ? data.recipes.find(r => r.id === id) : newRecipe();
   if (!r && isEdit) return;
 
@@ -539,24 +557,24 @@ function saveRecipe(id, isEdit) {
   });
 
   if (!isEdit) data.recipes.push(r);
-  save(data);
+  save();
   toast(isEdit ? '已更新' : '已创建');
   navigate('recipes', 'detail', r.id);
 }
 
 function deleteRecipe(id) {
   if (!confirm('确定删除这个菜谱吗？')) return;
-  const data = load();
+  const data = appData;
   data.recipes = data.recipes.filter(r => r.id !== id);
   data.menu = data.menu.filter(m => m.recipeId !== id);
-  save(data);
+  save();
   navigate('recipes', 'list');
   toast('已删除');
 }
 
 // ============ MENU ============
 function renderMenu() {
-  const data = load();
+  const data = appData;
   const ws = getWeekStart();
   const el = document.getElementById('tab-menu');
 
@@ -594,7 +612,7 @@ function renderMenu() {
 }
 
 function addToMenu(recipeId) {
-  const data = load();
+  const data = appData;
   const r = data.recipes.find(r => r.id === recipeId);
   if (!r) return;
   showModal(`<h2>加入菜单</h2><p style="margin:16px 0">将「<strong>${esc(r.title)}</strong>」加入</p>
@@ -621,7 +639,7 @@ function simpleCardHTML(r) {
 }
 
 function pickRecipe(date, mealType) {
-  const data = load();
+  const data = appData;
   showModal(`<h2>选择菜谱</h2>
     <div class="search-bar"><input id="modal-search" placeholder="搜索..." oninput="filterModalRecipes()"></div>
     <div id="modal-recipe-list">${data.recipes.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(r => simpleCardHTML(r)).join('')||'<div class="empty"><p>还没有菜谱</p></div>'}</div>`, () => {
@@ -645,19 +663,19 @@ function saveMenuEntry(recipeId) {
   saveMenuEntryDirect(recipeId, date, mealType);
 }
 function saveMenuEntryDirect(recipeId, date, mealType) {
-  const data = load();
+  const data = appData;
   const idx = data.menu.findIndex(m => m.date === date && m.mealType === mealType);
   if (idx >= 0) data.menu[idx].recipeId = recipeId;
   else data.menu.push({ date, mealType, recipeId });
-  save(data);
+  save();
   closeModal();
   render();
   toast('已加入菜单');
 }
 function removeMenuEntry(date, mealType) {
-  const data = load();
+  const data = appData;
   data.menu = data.menu.filter(m => !(m.date === date && m.mealType === mealType));
-  save(data);
+  save();
   render();
 }
 
@@ -674,7 +692,7 @@ function shiftWeek(n) { weekOffset += n; render(); }
 
 // ============ SHARING ============
 function renderSharing() {
-  const data = load();
+  const data = appData;
   const el = document.getElementById('tab-sharing');
 
   let h = `<div class="section-title">📤 导出菜谱</div>`;
@@ -708,7 +726,7 @@ function renderSharing() {
 function exportRecipes() {
   const ids = [...document.querySelectorAll('.export-chk:checked')].map(cb => cb.id.replace('chk-',''));
   if (ids.length === 0) { toast('请先选择菜谱'); return; }
-  const data = load();
+  const data = appData;
   const recipes = data.recipes.filter(r => ids.includes(r.id));
   const packages = recipes.map(toPackage);
   const json = JSON.stringify(packages.length === 1 ? packages[0] : packages, null, 2);
@@ -763,7 +781,7 @@ function showImportPreview(packages) {
   </div>`;
   showModal(h, () => {
     document.getElementById('confirm-import').onclick = () => {
-      const data = load();
+      const data = appData;
       packages.forEach(p => {
         const r = newRecipe(p.recipe?.title || '导入菜谱');
         if (p.recipe) {
@@ -781,7 +799,7 @@ function showImportPreview(packages) {
         }));
         data.recipes.push(r);
       });
-      save(data);
+      save();
       closeModal();
       navigate('recipes', 'list');
       toast(`成功导入 ${packages.length} 个菜谱`);
@@ -791,7 +809,7 @@ function showImportPreview(packages) {
 
 // QR code
 function showQR(recipeId) {
-  const data = load();
+  const data = appData;
   const r = data.recipes.find(r => r.id === recipeId);
   if (!r) return;
   const pkg = toPackage(r);
@@ -1009,9 +1027,45 @@ document.addEventListener('click', function(e) {
   }
 });
 
+// ============ SYNC POLLING ============
+let pollTimer;
+function startPolling() {
+  pollTimer = setInterval(async () => {
+    const oldVersion = dataVersion;
+    await fetchData();
+    if (dataVersion > oldVersion) {
+      const wasInRecipeList = currentTab === 'recipes' && currentView === 'list';
+      render();
+      if (wasInRecipeList) location.reload = false; // avoid scroll jump
+    }
+  }, 3000);
+}
+
+// Update sync badge
+function updateSyncBadge(status) {
+  const el = document.getElementById('sync-badge');
+  if (el) {
+    el.innerHTML = status === 'syncing' ? '🔄 同步中' : '✅ 已同步';
+    setTimeout(() => el.innerHTML = '✅ 已同步', 2000);
+  }
+}
+
 // ============ INIT ============
-seedIfEmpty();
-render();
+(async function() {
+  document.getElementById('sync-badge').innerHTML = '🔄 同步中';
+  await seedIfEmpty();
+  await fetchData();
+  updateSyncBadge('synced');
+  render();
+  startPolling();
+  // Override pushData to show sync badge
+  const origPushData = pushData;
+  pushData = async function() {
+    updateSyncBadge('syncing');
+    await origPushData();
+    updateSyncBadge('synced');
+  };
+})();
 </script>
 </body>
 </html>
