@@ -4,7 +4,6 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>菜谱</title>
-<script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
 <style>
 :root {
   --brown: #5C3A21;
@@ -153,16 +152,9 @@ body.dark .modal { background:#2A2318; }
 .share-card { display:flex; align-items:center; gap:var(--sp-md); padding:var(--sp-md); border-radius:var(--br-sm); background:var(--orange); color:#fff; cursor:pointer; margin-bottom:var(--sp-md); transition:transform .15s; }
 .share-card.import { background:var(--brown); }
 .share-card:active { transform:scale(.98); }
-.qr-container { text-align:center; padding:var(--sp-lg); }
-.qr-container canvas, .qr-container img { margin:0 auto; }
-
 /* Toast */
 .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--brown); color:#fff; padding:10px 24px; border-radius:20px; font-size:.9rem; z-index:300; opacity:0; transition:opacity .3s; pointer-events:none; }
 .toast.show { opacity:1; }
-
-/* Checkbox list */
-.check-list .check-row { display:flex; align-items:center; gap:var(--sp-sm); padding:8px 0; }
-.check-list input[type=checkbox] { width:20px; height:20px; accent-color:var(--orange); }
 
 /* File input hidden */
 .hidden-input { display:none; }
@@ -696,22 +688,7 @@ function renderSharing() {
   const data = appData;
   const el = document.getElementById('tab-sharing');
 
-  let h = `<div class="section-title">📤 导出菜谱</div>`;
-  if (data.recipes.length === 0) {
-    h += `<div class="empty"><p>还没有菜谱</p></div>`;
-  } else {
-    h += `<div class="check-list">`;
-    data.recipes.forEach(r => h += `
-      <div class="check-row">
-        <input type="checkbox" id="chk-${r.id}" class="export-chk">
-        <label for="chk-${r.id}" style="flex:1">${esc(r.title)}</label>
-        <button class="btn btn-sm btn-ghost" onclick="showQR('${r.id}')">📱</button>
-      </div>`);
-    h += `</div>
-    <button class="btn btn-primary btn-block" onclick="exportRecipes()">📤 导出选中</button>`;
-  }
-
-  h += `<div class="section-title" style="margin-top:var(--sp-lg)">📥 导入菜谱</div>`;
+  let h = `<div class="section-title">📥 导入菜谱</div>`;
   h += `<div class="share-card import" onclick="document.getElementById('import-file').click()">
     <span style="font-size:1.4rem">📄</span>
     <div><strong>从文件导入</strong><br><small style="opacity:.8">选择朋友发来的 .json 菜谱文件</small></div>
@@ -722,33 +699,6 @@ function renderSharing() {
   </div>`;
 
   el.innerHTML = h;
-}
-
-function exportRecipes() {
-  const ids = [...document.querySelectorAll('.export-chk:checked')].map(cb => cb.id.replace('chk-',''));
-  if (ids.length === 0) { toast('请先选择菜谱'); return; }
-  const data = appData;
-  const recipes = data.recipes.filter(r => ids.includes(r.id));
-  const packages = recipes.map(toPackage);
-  const json = JSON.stringify(packages.length === 1 ? packages[0] : packages, null, 2);
-  const blob = new Blob([json], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url;
-  a.download = recipes.length === 1 ? `${recipes[0].title}_recipe.json` : `recipes_${new Date().toISOString().slice(0,10)}.json`;
-  a.click();
-  URL.revokeObjectURL(url);
-  toast(`已导出 ${recipes.length} 个菜谱`);
-}
-
-function toPackage(r) {
-  return {
-    formatVersion: 1,
-    recipe: { title:r.title, description:r.description, servings:r.servings,
-      prepTime:r.prepTime, cookTime:r.cookTime, cuisine:r.cuisine,
-      difficulty:r.difficulty, image:r.image || '' },
-    ingredients: r.ingredients,
-    steps: r.steps
-  };
 }
 
 document.getElementById('import-file').addEventListener('change', function() {
@@ -806,27 +756,6 @@ function showImportPreview(packages) {
       toast(`成功导入 ${packages.length} 个菜谱`);
     };
   });
-}
-
-// QR code
-function showQR(recipeId) {
-  const data = appData;
-  const r = data.recipes.find(r => r.id === recipeId);
-  if (!r) return;
-  const pkg = toPackage(r);
-  const json = JSON.stringify(pkg);
-
-  showModal(`<h2>分享菜谱</h2><div class="qr-container"><div id="qrcode"></div></div>
-    <p style="text-align:center;font-size:.85rem;color:var(--gray);margin-top:8px">让朋友用 App 内扫码器扫描<br>或拍照后在"扫码导入"中使用</p>`);
-  setTimeout(() => {
-    try {
-      new QRCode(document.getElementById('qrcode'), {
-        text: json.length > 2900 ? json.slice(0, 2900) : json,
-        width: 240, height: 240,
-        colorDark: '#5C3A21', colorLight: '#ffffff'
-      });
-    } catch(e) { document.getElementById('qrcode').innerHTML = '<p style="color:var(--red)">数据过大，请使用文件导出</p>'; }
-  }, 100);
 }
 
 function scanQR() {
