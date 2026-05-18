@@ -385,6 +385,10 @@ function recipeCardHTML(r) {
 function renderDetail(r) {
   const diff = {easy:'简单',medium:'中等',hard:'复杂'}[r.difficulty];
   let h = `
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px">
+      <button onclick="navigate('recipes','list')" style="background:none;border:none;font-size:1.4rem;cursor:pointer;padding:4px;color:var(--brown);line-height:1">←</button>
+      <span style="font-size:.95rem;color:var(--gray)">返回</span>
+    </div>
     ${r.image ? `<img class="detail-hero" src="${esc(r.image)}" onerror="this.style.display='none';this.outerHTML='<div class=\\'detail-hero\\'>🍽️</div>'">` : `<div class="detail-hero">🍽️</div>`}
     <h2 style="font-size:1.5rem;margin-bottom:8px">${esc(r.title)}</h2>
     <div class="detail-meta">
@@ -425,7 +429,13 @@ function renderDetail(r) {
 function renderForm(existing) {
   const r = existing || newRecipe();
   const isEdit = !!existing;
-  let h = `<h2 style="margin-bottom:var(--sp-lg)">${isEdit?'编辑菜谱':'新建菜谱'}</h2>`;
+  const backTo = existing ? `navigate('recipes','detail','${existing.id}')` : "navigate('recipes','list')";
+  let h = `
+    <div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px">
+      <button onclick="${backTo}" style="background:none;border:none;font-size:1.4rem;cursor:pointer;padding:4px;color:var(--brown);line-height:1">←</button>
+      <span style="font-size:.95rem;color:var(--gray)">返回</span>
+    </div>
+    <h2 style="margin-bottom:var(--sp-lg)">${isEdit?'编辑菜谱':'新建菜谱'}</h2>`;
 
   h += `<div class="form-group"><label>菜名 *</label><input id="f-title" value="${esc(r.title)}" placeholder="例如：红烧肉"></div>`;
   h += `<div class="form-group"><label>简介</label><textarea id="f-desc" placeholder="用一句话描述这道菜...">${esc(r.description)}</textarea></div>`;
