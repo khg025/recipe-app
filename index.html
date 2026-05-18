@@ -155,10 +155,15 @@ body.dark .modal { background:#2A2318; }
 /* Image preview */
 .img-preview { width:100%; max-height:160px; object-fit:cover; border-radius:var(--br-sm); margin-top:var(--sp-sm); }
 
-/* List item with delete */
-.editable-list .el-row { display:flex; align-items:center; gap:var(--sp-sm); padding:6px 0; }
-.editable-list .el-row span { flex:1; font-size:.9rem; }
-.editable-list .el-row button { background:none; border:none; color:var(--red); cursor:pointer; font-size:1.1rem; padding:4px; }
+/* Ingredient & step item cards */
+.item-card { display:flex; align-items:center; gap:var(--sp-sm); padding:10px var(--sp-sm); border-radius:var(--br-sm); margin-bottom:6px; background:var(--beige); }
+body.dark .item-card { background:#3a3020; }
+.item-card .item-num { width:22px; height:22px; border-radius:50%; background:var(--orange); color:#fff; display:flex; align-items:center; justify-content:center; font-weight:bold; font-size:.75rem; flex-shrink:0; }
+.item-card .item-text { flex:1; font-size:.9rem; min-width:0; }
+.item-card .item-sub { font-size:.75rem; color:var(--gray); margin-top:1px; }
+.item-card .item-btn { background:none; border:none; cursor:pointer; padding:4px 6px; font-size:.85rem; border-radius:4px; flex-shrink:0; }
+.item-card .item-btn.edit { color:var(--orange); }
+.item-card .item-btn.del { color:var(--red); }
 
 /* Bottom action bar */
 .action-bar { position:fixed; bottom:0; left:0; right:0; padding:var(--sp-md) var(--sp-lg); background:#fff; border-top:1px solid var(--beige); display:flex; gap:var(--sp-md); z-index:90; }
@@ -242,9 +247,6 @@ function newRecipe(title='') { return {
   cuisine:'', difficulty:'medium', image:'', ingredients:[], steps:[],
   createdAt: new Date().toISOString(), updatedAt: new Date().toISOString()
 };}
-
-function newIngredient() { return { name:'', amount:'', unit:'g' }; }
-function newStep() { return { instruction:'', time:0 }; }
 
 // ============ SEED SAMPLE DATA ============
 async function seedIfEmpty() {
@@ -427,9 +429,44 @@ function renderDetail(r) {
   return h;
 }
 
+let formIngredients = [];
+let formSteps = [];
+
+function renderFormData() {
+  const listEl = document.getElementById('ingredients-list');
+  if (listEl) {
+    if (formIngredients.length === 0) {
+      listEl.innerHTML = `<div class="empty" style="padding:24px"><p style="font-size:.85rem">暂无材料，点击上方添加</p></div>`;
+    } else {
+      listEl.innerHTML = formIngredients.map((ing,i) => `
+        <div class="item-card">
+          <span class="item-text">${esc(ing.name)}${ing.amount ? ' · '+esc(ing.amount)+esc(ing.unit) : ''}</span>
+          <button class="item-btn edit" onclick="openIngredientModal(${i})" title="编辑">✏️</button>
+          <button class="item-btn del" onclick="formIngredients.splice(${i},1);renderFormData()" title="删除">✕</button>
+        </div>`).join('');
+    }
+  }
+  const stepsEl = document.getElementById('steps-list');
+  if (stepsEl) {
+    if (formSteps.length === 0) {
+      stepsEl.innerHTML = `<div class="empty" style="padding:24px"><p style="font-size:.85rem">暂无步骤，点击上方添加</p></div>`;
+    } else {
+      stepsEl.innerHTML = formSteps.map((s,i) => `
+        <div class="item-card">
+          <div class="item-num">${i+1}</div>
+          <div class="item-text">${esc(s.instruction)}${s.time > 0 ? `<div class="item-sub">⏱ ${fmtTime(s.time)}</div>` : ''}</div>
+          <button class="item-btn edit" onclick="openStepModal(${i})" title="编辑">✏️</button>
+          <button class="item-btn del" onclick="formSteps.splice(${i},1);renderFormData()" title="删除">✕</button>
+        </div>`).join('');
+    }
+  }
+}
+
 function renderForm(existing) {
   const r = existing || newRecipe();
   const isEdit = !!existing;
+  formIngredients = (r.ingredients || []).map(i => ({...i}));
+  formSteps = (r.steps || []).map(s => ({...s}));
   const backTo = existing ? `navigate('recipes','detail','${existing.id}')` : "navigate('recipes','list')";
   let h = `
     <div style="display:flex;align-items:center;gap:12px;padding:8px 0 12px">
@@ -460,36 +497,33 @@ function renderForm(existing) {
   </div>`;
 
   // Ingredients
-  h += `<div class="section-title">🥕 材料 <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="addIngredientRow()">+ 添加</button></div>`;
-  h += `<div id="ingredients-list" class="editable-list">`;
-  (r.ingredients.length ? r.ingredients : [newIngredient()]).forEach((ing,i) => {
-    h += `<div class="el-row">
-      <input class="ing-name" value="${esc(ing.name)}" placeholder="材料名" style="flex:2">
-      <input class="ing-amount" value="${esc(ing.amount)}" placeholder="量" style="flex:1">
-      <input class="ing-unit" value="${esc(ing.unit)}" placeholder="单位" style="flex:1">
-      <button onclick="this.parentElement.remove()">✕</button>
+  h += `<div class="section-title">🥕 材料 <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="openIngredientModal(-1)">+ 添加</button></div>`;
+  h += `<div id="ingredients-list">`;
+  r.ingredients.forEach((ing,i) => {
+    h += `<div class="item-card">
+      <span class="item-text">${esc(ing.name)}${ing.amount ? ' · '+esc(ing.amount)+esc(ing.unit) : ''}</span>
+      <button class="item-btn edit" onclick="openIngredientModal(${i})" title="编辑">✏️</button>
+      <button class="item-btn del" onclick="formIngredients.splice(${i},1);renderFormData()" title="删除">✕</button>
     </div>`;
   });
+  if (r.ingredients.length === 0) {
+    h += `<div class="empty" style="padding:24px"><p style="font-size:.85rem">暂无材料，点击上方添加</p></div>`;
+  }
   h += `</div>`;
 
   // Steps
-  h += `<div class="section-title" style="margin-top:var(--sp-lg)">📋 步骤 <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="addStepRow()">+ 添加</button></div>`;
-  h += `<div id="steps-list" class="editable-list">`;
+  h += `<div class="section-title" style="margin-top:var(--sp-lg)">📋 步骤 <button class="btn btn-sm btn-secondary" style="margin-left:auto" onclick="openStepModal(-1)">+ 添加</button></div>`;
+  h += `<div id="steps-list">`;
   r.steps.forEach((s,i) => {
-    h += `<div class="el-row">
-      <span style="font-weight:bold;width:24px">${i+1}.</span>
-      <input class="step-inst" value="${esc(s.instruction)}" placeholder="步骤说明" style="flex:3">
-      <input class="step-time" value="${s.time||''}" placeholder="分钟" type="number" style="flex:1;width:60px">
-      <button onclick="this.parentElement.remove();renumberSteps()">✕</button>
+    h += `<div class="item-card">
+      <div class="item-num">${i+1}</div>
+      <div class="item-text">${esc(s.instruction)}${s.time > 0 ? `<div class="item-sub">⏱ ${fmtTime(s.time)}</div>` : ''}</div>
+      <button class="item-btn edit" onclick="openStepModal(${i})" title="编辑">✏️</button>
+      <button class="item-btn del" onclick="formSteps.splice(${i},1);renderFormData()" title="删除">✕</button>
     </div>`;
   });
   if (r.steps.length === 0) {
-    h += `<div class="el-row">
-      <span style="font-weight:bold;width:24px">1.</span>
-      <input class="step-inst" placeholder="步骤说明" style="flex:3">
-      <input class="step-time" placeholder="分钟" type="number" style="flex:1;width:60px">
-      <button onclick="this.parentElement.remove();renumberSteps()">✕</button>
-    </div>`;
+    h += `<div class="empty" style="padding:24px"><p style="font-size:.85rem">暂无步骤，点击上方添加</p></div>`;
   }
   h += `</div>`;
 
@@ -519,25 +553,10 @@ function saveRecipe(id, isEdit) {
   r.updatedAt = new Date().toISOString();
 
   // Ingredients
-  r.ingredients = [];
-  document.querySelectorAll('#ingredients-list .el-row').forEach(row => {
-    const name = row.querySelector('.ing-name')?.value?.trim();
-    if (name) r.ingredients.push({
-      name,
-      amount: row.querySelector('.ing-amount')?.value || '',
-      unit: row.querySelector('.ing-unit')?.value || ''
-    });
-  });
+  r.ingredients = formIngredients.filter(i => i.name.trim());
 
   // Steps
-  r.steps = [];
-  document.querySelectorAll('#steps-list .el-row').forEach(row => {
-    const inst = row.querySelector('.step-inst')?.value?.trim();
-    if (inst) r.steps.push({
-      instruction: inst,
-      time: parseInt(row.querySelector('.step-time')?.value) || 0
-    });
-  });
+  r.steps = formSteps.filter(s => s.instruction.trim());
 
   if (!isEdit) data.recipes.push(r);
   save();
@@ -711,31 +730,55 @@ function setCuisine(c) {
   renderRecipes();
 }
 
-function addIngredientRow() {
-  const list = document.getElementById('ingredients-list');
-  const row = document.createElement('div');
-  row.className = 'el-row';
-  row.innerHTML = `<input class="ing-name" placeholder="材料名" style="flex:2">
-    <input class="ing-amount" placeholder="量" style="flex:1">
-    <input class="ing-unit" placeholder="单位" style="flex:1">
-    <button onclick="this.parentElement.remove()">✕</button>`;
-  list.appendChild(row);
+// ============ INGREDIENT / STEP MODALS ============
+function openIngredientModal(index) {
+  const ing = index >= 0 ? formIngredients[index] : { name:'', amount:'', unit:'g' };
+  showModal(`<h2>${index >= 0 ? '编辑材料' : '添加材料'}</h2>
+    <div class="form-group"><label>材料名</label><input id="mod-ing-name" value="${esc(ing.name)}" placeholder="例如：鸡蛋"></div>
+    <div class="form-row">
+      <div class="form-group"><label>用量</label><input id="mod-ing-amount" value="${esc(ing.amount)}" placeholder="例如：3"></div>
+      <div class="form-group"><label>单位</label><input id="mod-ing-unit" value="${esc(ing.unit)}" placeholder="例如：个"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary btn-block" onclick="saveIngredient(${index})">保存</button>
+    </div>`);
 }
-function addStepRow() {
-  const list = document.getElementById('steps-list');
-  const n = list.querySelectorAll('.el-row').length + 1;
-  const row = document.createElement('div');
-  row.className = 'el-row';
-  row.innerHTML = `<span style="font-weight:bold;width:24px">${n}.</span>
-    <input class="step-inst" placeholder="步骤说明" style="flex:3">
-    <input class="step-time" placeholder="分钟" type="number" style="flex:1;width:60px">
-    <button onclick="this.parentElement.remove();renumberSteps()">✕</button>`;
-  list.appendChild(row);
+
+function saveIngredient(index) {
+  const ing = {
+    name: document.getElementById('mod-ing-name').value.trim(),
+    amount: document.getElementById('mod-ing-amount').value.trim(),
+    unit: document.getElementById('mod-ing-unit').value.trim()
+  };
+  if (!ing.name) { toast('请输入材料名'); return; }
+  if (index >= 0) formIngredients[index] = ing;
+  else formIngredients.push(ing);
+  closeModal();
+  renderFormData();
 }
-function renumberSteps() {
-  document.querySelectorAll('#steps-list .el-row').forEach((r,i) => {
-    r.querySelector('span').textContent = (i+1)+'.';
-  });
+
+function openStepModal(index) {
+  const step = index >= 0 ? formSteps[index] : { instruction:'', time:0 };
+  showModal(`<h2>${index >= 0 ? '编辑步骤' : '添加步骤'}</h2>
+    <div class="form-group"><label>步骤说明</label><textarea id="mod-step-inst" placeholder="描述这一步做什么...">${esc(step.instruction)}</textarea></div>
+    <div class="form-group"><label>时间 (分钟，可选)</label><input id="mod-step-time" type="number" value="${step.time||''}" placeholder="0" min="0"></div>
+    <div style="display:flex;gap:8px;margin-top:16px">
+      <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
+      <button class="btn btn-primary btn-block" onclick="saveStep(${index})">保存</button>
+    </div>`);
+}
+
+function saveStep(index) {
+  const step = {
+    instruction: document.getElementById('mod-step-inst').value.trim(),
+    time: parseInt(document.getElementById('mod-step-time').value) || 0
+  };
+  if (!step.instruction) { toast('请输入步骤说明'); return; }
+  if (index >= 0) formSteps[index] = step;
+  else formSteps.push(step);
+  closeModal();
+  renderFormData();
 }
 
 function previewImage(input) {
