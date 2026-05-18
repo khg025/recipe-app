@@ -148,16 +148,9 @@ body.dark .modal { background:#2A2318; }
 .menu-slot .thumbnail { width:40px; height:40px; border-radius:6px; background:var(--beige); flex-shrink:0; display:flex; align-items:center; justify-content:center; }
 .menu-slot .thumbnail img { width:100%; height:100%; object-fit:cover; border-radius:6px; }
 
-/* Sharing */
-.share-card { display:flex; align-items:center; gap:var(--sp-md); padding:var(--sp-md); border-radius:var(--br-sm); background:var(--orange); color:#fff; cursor:pointer; margin-bottom:var(--sp-md); transition:transform .15s; }
-.share-card.import { background:var(--brown); }
-.share-card:active { transform:scale(.98); }
 /* Toast */
 .toast { position:fixed; bottom:80px; left:50%; transform:translateX(-50%); background:var(--brown); color:#fff; padding:10px 24px; border-radius:20px; font-size:.9rem; z-index:300; opacity:0; transition:opacity .3s; pointer-events:none; }
 .toast.show { opacity:1; }
-
-/* File input hidden */
-.hidden-input { display:none; }
 
 /* Image preview */
 .img-preview { width:100%; max-height:160px; object-fit:cover; border-radius:var(--br-sm); margin-top:var(--sp-sm); }
@@ -185,13 +178,11 @@ body.dark .action-bar { background:#2A2318; border-color:#3a3020; }
 <nav>
   <button data-tab="recipes" class="active"><span>📖</span> 菜谱</button>
   <button data-tab="menu"><span>📅</span> 菜单</button>
-  <button data-tab="sharing"><span>📤</span> 分享</button>
 </nav>
 
 <main>
   <div id="tab-recipes" class="tab-page active"></div>
   <div id="tab-menu" class="tab-page"></div>
-  <div id="tab-sharing" class="tab-page"></div>
 </main>
 
 <div class="modal-overlay hidden" id="modal-overlay">
@@ -200,7 +191,6 @@ body.dark .action-bar { background:#2A2318; border-color:#3a3020; }
 
 <div class="toast" id="toast"></div>
 
-<input type="file" accept=".json" class="hidden-input" id="import-file">
 
 <script>
 // ============ FIREBASE CONFIG ============
@@ -321,7 +311,6 @@ function render() {
 
   if (currentTab === 'recipes') renderRecipes();
   else if (currentTab === 'menu') renderMenu();
-  else if (currentTab === 'sharing') renderSharing();
 
   document.getElementById('modal-overlay').classList.add('hidden');
   window.scrollTo(0, 0);
@@ -682,128 +671,6 @@ function getWeekStart() {
   return d;
 }
 function shiftWeek(n) { weekOffset += n; render(); }
-
-// ============ SHARING ============
-function renderSharing() {
-  const data = appData;
-  const el = document.getElementById('tab-sharing');
-
-  let h = `<div class="section-title">📥 导入菜谱</div>`;
-  h += `<div class="share-card import" onclick="document.getElementById('import-file').click()">
-    <span style="font-size:1.4rem">📄</span>
-    <div><strong>从文件导入</strong><br><small style="opacity:.8">选择朋友发来的 .json 菜谱文件</small></div>
-  </div>`;
-  h += `<div class="share-card import" style="background:var(--brown)" onclick="scanQR()">
-    <span style="font-size:1.4rem">📱</span>
-    <div><strong>扫码导入</strong><br><small style="opacity:.8">仅支持纯文本 QR 码（数据较小的菜谱）</small></div>
-  </div>`;
-
-  el.innerHTML = h;
-}
-
-document.getElementById('import-file').addEventListener('change', function() {
-  const file = this.files[0];
-  if (!file) return;
-  const reader = new FileReader();
-  reader.onload = function(e) {
-    try {
-      let packages = JSON.parse(e.target.result);
-      if (!Array.isArray(packages)) packages = [packages];
-      showImportPreview(packages);
-    } catch(err) { toast('文件格式无效: ' + err.message); }
-  };
-  reader.readAsText(file);
-  this.value = '';
-});
-
-function showImportPreview(packages) {
-  let h = `<h2>导入预览</h2><p style="margin:8px 0;color:var(--gray)">共 ${packages.length} 个菜谱</p>`;
-  packages.forEach((p,i) => {
-    h += `<div class="card" style="margin-top:8px">
-      <strong>${esc(p.recipe?.title || '未知菜谱')}</strong>
-      <div style="font-size:.8rem;color:var(--gray);margin-top:4px">
-        ${p.ingredients?.length || 0} 种材料 · ${p.steps?.length || 0} 步
-      </div>
-    </div>`;
-  });
-  h += `<div style="display:flex;gap:8px;margin-top:16px">
-    <button class="btn btn-ghost btn-block" onclick="closeModal()">取消</button>
-    <button class="btn btn-primary btn-block" id="confirm-import">保存全部</button>
-  </div>`;
-  showModal(h, () => {
-    document.getElementById('confirm-import').onclick = () => {
-      const data = appData;
-      packages.forEach(p => {
-        const r = newRecipe(p.recipe?.title || '导入菜谱');
-        if (p.recipe) {
-          r.title = p.recipe.title; r.description = p.recipe.description || '';
-          r.servings = p.recipe.servings || 2; r.cuisine = p.recipe.cuisine || '';
-          r.difficulty = p.recipe.difficulty || 'medium';
-          r.prepTime = p.recipe.prepTime || 0; r.cookTime = p.recipe.cookTime || 0;
-          r.image = p.recipe.image || '';
-        }
-        r.ingredients = (p.ingredients || []).map(i => ({
-          name: i.name || '', amount: i.amount || '', unit: i.unit || ''
-        }));
-        r.steps = (p.steps || []).map(s => ({
-          instruction: s.instruction || '', time: s.time || 0
-        }));
-        data.recipes.push(r);
-      });
-      save();
-      closeModal();
-      navigate('recipes', 'list');
-      toast(`成功导入 ${packages.length} 个菜谱`);
-    };
-  });
-}
-
-function scanQR() {
-  if (!('BarcodeDetector' in window)) {
-    if (confirm('浏览器不支持内置扫码。\n\n你可以：\n1. 用手机相机扫描 QR 码\n2. 复制文本到下方输入框\n\n点击确定粘贴文本')) {
-      navigator.clipboard.readText().then(text => {
-        try {
-          let pkgs = JSON.parse(text);
-          if (!Array.isArray(pkgs)) pkgs = [pkgs];
-          showImportPreview(pkgs);
-        } catch(e) { toast('剪贴板中无有效菜谱数据'); }
-      }).catch(() => createPasteArea());
-    }
-    return;
-  }
-  toast('启动扫码器...');
-  const input = document.createElement('input');
-  input.type = 'file'; input.accept = 'image/*'; input.capture = 'environment';
-  input.onchange = async function() {
-    const file = this.files[0];
-    if (!file) return;
-    try {
-      const bd = new BarcodeDetector({formats:['qr_code']});
-      const barcodes = await bd.detect(file);
-      if (barcodes.length) {
-        try {
-          let pkgs = JSON.parse(barcodes[0].rawValue);
-          if (!Array.isArray(pkgs)) pkgs = [pkgs];
-          showImportPreview(pkgs);
-        } catch(e) { toast('二维码不含有效菜谱数据'); }
-      } else { toast('未检测到二维码'); }
-    } catch(e) { toast('扫码失败'); }
-  };
-  input.click();
-}
-function createPasteArea() {
-  showModal(`<h2>扫码导入</h2><p style="color:var(--gray);margin:8px 0">请将扫码得到的文本粘贴到下方：</p>
-    <textarea id="paste-area" style="width:100%;height:120px;font-family:monospace;font-size:.8rem" placeholder="粘贴二维码内容..."></textarea>
-    <button class="btn btn-primary btn-block" style="margin-top:12px" onclick="parsePastedText()">导入</button>`);
-}
-function parsePastedText() {
-  try {
-    let pkgs = JSON.parse(document.getElementById('paste-area').value);
-    if (!Array.isArray(pkgs)) pkgs = [pkgs];
-    closeModal();
-    showImportPreview(pkgs);
-  } catch(e) { toast('无效的菜谱数据'); }
-}
 
 // ============ HELPERS ============
 function showModal(html, onReady) {
