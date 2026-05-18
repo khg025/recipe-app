@@ -975,7 +975,11 @@ function resetAllSwipes(except) {
 
 document.addEventListener('touchstart', function(e) {
   const inner = e.target.closest('.swipe-inner');
-  if (!inner) { resetAllSwipes(); return; }
+  if (!inner) {
+    // Only reset if tapping outside any swipe-wrap (allow tapping edit/delete buttons)
+    if (!e.target.closest('.swipe-wrap')) resetAllSwipes();
+    return;
+  }
   const wrap = inner.parentElement;
   const t = e.touches[0];
   swipeState.el = wrap;
