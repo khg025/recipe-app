@@ -563,10 +563,9 @@ function saveRecipe(id, isEdit) {
 }
 
 function deleteRecipe(id) {
-  if (!confirm('确定删除这个菜谱吗？')) return;
-  const data = appData;
-  data.recipes = data.recipes.filter(r => r.id !== id);
-  data.menu = data.menu.filter(m => m.recipeId !== id);
+  if (!confirm('确定要删除这个菜谱吗？')) return;
+  appData.recipes = appData.recipes.filter(r => r.id !== id);
+  appData.menu = appData.menu.filter(m => m.recipeId !== id);
   save();
   navigate('recipes', 'list');
   toast('已删除');
@@ -990,8 +989,8 @@ document.addEventListener('touchmove', function(e) {
   const t = e.touches[0];
   const dx = t.clientX - swipeState.startX;
   const dy = Math.abs(t.clientY - swipeState.startY);
-  // Allow vertical scroll
-  if (Math.abs(dx) < dy) { swipeState.el = null; return; }
+  // Allow vertical scroll and tiny movements (taps)
+  if (Math.abs(dx) < dy || Math.abs(dx) < 5) { swipeState.el = null; return; }
   e.preventDefault();
 
   let offset = dx;
@@ -1019,11 +1018,11 @@ document.addEventListener('touchend', function() {
   swipeState.el = null;
 });
 
-// Click on red delete area
+// Click on red delete area — deleteRecipe has its own confirm
 document.addEventListener('click', function(e) {
   if (e.target.closest('.swipe-bg')) {
     const id = e.target.closest('.swipe-wrap').dataset.id;
-    if (confirm('确定要删除这个菜谱吗？')) deleteRecipe(id);
+    deleteRecipe(id);
   }
 });
 
