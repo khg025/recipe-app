@@ -49,7 +49,9 @@ body.dark .card { background:#2A2318; border-color:#3a3020; box-shadow:0 2px 8px
 
 /* Swipe container */
 .swipe-wrap { position:relative; overflow:hidden; border-radius:var(--br-lg); margin-bottom:var(--sp-md); }
-.swipe-bg { position:absolute; inset:0; background:var(--red); border-radius:var(--br-lg); display:flex; align-items:center; justify-content:flex-end; padding-right:var(--sp-lg); color:#fff; font-size:.9rem; font-weight:600; }
+.swipe-bg { position:absolute; inset:0; border-radius:var(--br-lg); display:flex; align-items:stretch; justify-content:flex-end; }
+.swipe-edit { background:var(--orange); color:#fff; display:flex; align-items:center; justify-content:center; width:70px; font-size:.85rem; font-weight:600; cursor:pointer; user-select:none; }
+.swipe-delete { background:var(--red); color:#fff; display:flex; align-items:center; justify-content:center; width:70px; font-size:.85rem; font-weight:600; cursor:pointer; border-radius:0 var(--br-lg) var(--br-lg) 0; user-select:none; }
 .swipe-inner { position:relative; z-index:1; background:#fff; border-radius:var(--br-lg); padding:var(--sp-md); box-shadow:0 2px 8px rgba(92,58,33,.08); border:0.5px solid var(--beige); transition:transform .25s ease; display:flex; gap:var(--sp-md); align-items:center; }
 body.dark .swipe-inner { background:#2A2318; border-color:#3a3020; box-shadow:0 2px 8px rgba(0,0,0,.3); }
 .swipe-inner.swiped { border-radius:var(--br-lg) 0 0 var(--br-lg); }
@@ -385,7 +387,7 @@ function recipeCardHTML(r) {
   const t = r.prepTime + r.cookTime;
   return `
   <div class="swipe-wrap" data-id="${r.id}">
-    <div class="swipe-bg">删除</div>
+    <div class="swipe-bg"><div class="swipe-edit">编辑</div><div class="swipe-delete">删除</div></div>
     <div class="swipe-inner">
       <div class="recipe-thumb">${r.image ? `<img src="${esc(r.image)}" onerror="this.style.display='none';this.parentElement.textContent='🍽️'">` : '🍽️'}</div>
       <div class="recipe-info" onclick="navigate('recipes','detail','${r.id}')">
@@ -958,7 +960,7 @@ document.querySelectorAll('nav button').forEach(btn => {
 });
 
 // ============ SWIPE TO DELETE ============
-const SWIPE_THRESHOLD = 80;
+const SWIPE_THRESHOLD = 140;
 let swipeState = { el:null, startX:0, startY:0, offset:0, open:false };
 
 function resetAllSwipes(except) {
@@ -1018,11 +1020,15 @@ document.addEventListener('touchend', function() {
   swipeState.el = null;
 });
 
-// Click on red delete area — deleteRecipe has its own confirm
+// Click on swipe action buttons
 document.addEventListener('click', function(e) {
-  if (e.target.closest('.swipe-bg')) {
-    const id = e.target.closest('.swipe-wrap').dataset.id;
+  const wrap = e.target.closest('.swipe-wrap');
+  if (!wrap) return;
+  const id = wrap.dataset.id;
+  if (e.target.closest('.swipe-delete')) {
     deleteRecipe(id);
+  } else if (e.target.closest('.swipe-edit')) {
+    navigate('recipes', 'form', id);
   }
 });
 
