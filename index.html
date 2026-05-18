@@ -975,11 +975,7 @@ function resetAllSwipes(except) {
 
 document.addEventListener('touchstart', function(e) {
   const inner = e.target.closest('.swipe-inner');
-  if (!inner) {
-    // Only reset if tapping outside any swipe-wrap (allow tapping edit/delete buttons)
-    if (!e.target.closest('.swipe-wrap')) resetAllSwipes();
-    return;
-  }
+  if (!inner) return;
   const wrap = inner.parentElement;
   const t = e.touches[0];
   swipeState.el = wrap;
@@ -1032,7 +1028,7 @@ document.addEventListener('click', function(e) {
   if (e.target.closest('.swipe-delete')) {
     deleteRecipe(id);
   } else if (e.target.closest('.swipe-edit')) {
-    navigate('recipes', 'form', id);
+    navigate('recipes', 'detail', id);
   }
 });
 
