@@ -44,9 +44,15 @@ main { max-width:640px; margin:0 auto; padding:var(--sp-lg) var(--sp-md) 100px; 
 body.dark .card { background:#2A2318; border-color:#3a3020; box-shadow:0 2px 8px rgba(0,0,0,.3); }
 
 /* Recipe card in list */
-.recipe-card { display:flex; gap:var(--sp-md); align-items:center; cursor:pointer; transition:transform .15s; }
-.recipe-card:active { transform:scale(.98); }
+.recipe-card { display:flex; gap:var(--sp-md); align-items:center; }
 .recipe-thumb { width:72px; height:72px; border-radius:var(--br-sm); object-fit:cover; background:var(--beige); flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:1.8rem; color:var(--orange); }
+
+/* Swipe container */
+.swipe-wrap { position:relative; overflow:hidden; border-radius:var(--br-lg); margin-bottom:var(--sp-md); }
+.swipe-bg { position:absolute; inset:0; background:var(--red); border-radius:var(--br-lg); display:flex; align-items:center; justify-content:flex-end; padding-right:var(--sp-lg); color:#fff; font-size:.9rem; font-weight:600; pointer-events:none; }
+.swipe-inner { position:relative; z-index:1; background:#fff; border-radius:var(--br-lg); padding:var(--sp-md); box-shadow:0 2px 8px rgba(92,58,33,.08); border:0.5px solid var(--beige); transition:transform .25s ease; display:flex; gap:var(--sp-md); align-items:center; }
+body.dark .swipe-inner { background:#2A2318; border-color:#3a3020; box-shadow:0 2px 8px rgba(0,0,0,.3); }
+.swipe-inner.swiped { border-radius:var(--br-lg) 0 0 var(--br-lg); }
 .recipe-thumb img { width:100%; height:100%; object-fit:cover; border-radius:var(--br-sm); }
 .recipe-info { flex:1; min-width:0; }
 .recipe-info h3 { font-size:1.1rem; margin-bottom:4px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -360,14 +366,17 @@ function recipeCardHTML(r) {
   const diff = {easy:'简单',medium:'中等',hard:'复杂'}[r.difficulty];
   const t = r.prepTime + r.cookTime;
   return `
-  <div class="card recipe-card" onclick="navigate('recipes','detail','${r.id}')">
-    <div class="recipe-thumb">${r.image ? `<img src="${esc(r.image)}" onerror="this.style.display='none';this.parentElement.textContent='🍽️'">` : '🍽️'}</div>
-    <div class="recipe-info">
-      <h3>${esc(r.title)}</h3>
-      <div class="meta">${r.cuisine ? esc(r.cuisine)+' · ' : ''}${diff}${t>0 ? ' · '+fmtTime(t) : ''}</div>
-      <div class="badges">
-        <span class="badge badge-${r.difficulty}">${diff}</span>
-        ${r.cuisine ? `<span class="badge badge-time">${esc(r.cuisine)}</span>` : ''}
+  <div class="swipe-wrap" data-id="${r.id}">
+    <div class="swipe-bg">删除</div>
+    <div class="swipe-inner">
+      <div class="recipe-thumb">${r.image ? `<img src="${esc(r.image)}" onerror="this.style.display='none';this.parentElement.textContent='🍽️'">` : '🍽️'}</div>
+      <div class="recipe-info" onclick="navigate('recipes','detail','${r.id}')">
+        <h3>${esc(r.title)}</h3>
+        <div class="meta">${r.cuisine ? esc(r.cuisine)+' · ' : ''}${diff}${t>0 ? ' · '+fmtTime(t) : ''}</div>
+        <div class="badges">
+          <span class="badge badge-${r.difficulty}">${diff}</span>
+          ${r.cuisine ? `<span class="badge badge-time">${esc(r.cuisine)}</span>` : ''}
+        </div>
       </div>
     </div>
   </div>`;
@@ -584,15 +593,31 @@ function addToMenu(recipeId) {
     <button class="btn btn-primary btn-block" onclick="saveMenuEntry('${recipeId}')">加入</button>`);
 }
 
+function simpleCardHTML(r) {
+  const diff = {easy:'简单',medium:'中等',hard:'复杂'}[r.difficulty];
+  const t = r.prepTime + r.cookTime;
+  return `
+  <div class="card recipe-card" data-id="${r.id}" style="cursor:pointer">
+    <div class="recipe-thumb">${r.image ? `<img src="${esc(r.image)}" onerror="this.style.display='none';this.parentElement.textContent='🍽️'">` : '🍽️'}</div>
+    <div class="recipe-info">
+      <h3>${esc(r.title)}</h3>
+      <div class="meta">${r.cuisine ? esc(r.cuisine)+' · ' : ''}${diff}${t>0 ? ' · '+fmtTime(t) : ''}</div>
+      <div class="badges">
+        <span class="badge badge-${r.difficulty}">${diff}</span>
+        ${r.cuisine ? `<span class="badge badge-time">${esc(r.cuisine)}</span>` : ''}
+      </div>
+    </div>
+  </div>`;
+}
+
 function pickRecipe(date, mealType) {
   const data = load();
   showModal(`<h2>选择菜谱</h2>
     <div class="search-bar"><input id="modal-search" placeholder="搜索..." oninput="filterModalRecipes()"></div>
-    <div id="modal-recipe-list">${data.recipes.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(r => recipeCardHTML(r)).join('')||'<div class="empty"><p>还没有菜谱</p></div>'}</div>`, () => {
+    <div id="modal-recipe-list">${data.recipes.sort((a,b)=>new Date(b.updatedAt)-new Date(a.updatedAt)).map(r => simpleCardHTML(r)).join('')||'<div class="empty"><p>还没有菜谱</p></div>'}</div>`, () => {
       document.querySelectorAll('#modal-recipe-list .recipe-card').forEach(card => {
         card.onclick = function() {
-          const rid = this.getAttribute('onclick').match(/'([^']+)'/)[1];
-          saveMenuEntryDirect(rid, date, mealType);
+          saveMenuEntryDirect(this.dataset.id, date, mealType);
         };
       });
     });
@@ -903,6 +928,75 @@ function previewImage(input) {
 // ============ TAB SWITCHING ============
 document.querySelectorAll('nav button').forEach(btn => {
   btn.addEventListener('click', () => navigate(btn.dataset.tab));
+});
+
+// ============ SWIPE TO DELETE ============
+const SWIPE_THRESHOLD = 80;
+let swipeState = { el:null, startX:0, startY:0, offset:0, open:false };
+
+function resetAllSwipes(except) {
+  document.querySelectorAll('.swipe-wrap').forEach(w => {
+    if (w !== except) {
+      const inner = w.querySelector('.swipe-inner');
+      inner.style.transform = '';
+      inner.classList.remove('swiped');
+    }
+  });
+}
+
+document.addEventListener('touchstart', function(e) {
+  const inner = e.target.closest('.swipe-inner');
+  if (!inner) { resetAllSwipes(); return; }
+  const wrap = inner.parentElement;
+  const t = e.touches[0];
+  swipeState.el = wrap;
+  swipeState.startX = t.clientX;
+  swipeState.startY = t.clientY;
+  swipeState.open = inner.classList.contains('swiped');
+  inner.style.transition = 'none';
+  swipeState.inner = inner;
+}, {passive:false});
+
+document.addEventListener('touchmove', function(e) {
+  if (!swipeState.el) return;
+  const t = e.touches[0];
+  const dx = t.clientX - swipeState.startX;
+  const dy = Math.abs(t.clientY - swipeState.startY);
+  // Allow vertical scroll
+  if (Math.abs(dx) < dy) { swipeState.el = null; return; }
+  e.preventDefault();
+
+  let offset = dx;
+  if (swipeState.open) offset -= SWIPE_THRESHOLD;
+  offset = Math.min(0, Math.max(-SWIPE_THRESHOLD, offset));
+  swipeState.offset = offset;
+  swipeState.inner.style.transform = `translateX(${offset}px)`;
+  swipeState.inner.classList.toggle('swiped', offset <= -SWIPE_THRESHOLD);
+}, {passive:false});
+
+document.addEventListener('touchend', function() {
+  if (!swipeState.el) return;
+  const inner = swipeState.inner;
+  const shouldOpen = swipeState.offset <= -SWIPE_THRESHOLD/2 && !swipeState.open;
+  inner.style.transition = 'transform .25s ease';
+
+  if (shouldOpen) {
+    inner.style.transform = `translateX(-${SWIPE_THRESHOLD}px)`;
+    inner.classList.add('swiped');
+    resetAllSwipes(swipeState.el);
+  } else {
+    inner.style.transform = '';
+    inner.classList.remove('swiped');
+  }
+  swipeState.el = null;
+});
+
+// Click on red delete area
+document.addEventListener('click', function(e) {
+  if (e.target.closest('.swipe-bg')) {
+    const id = e.target.closest('.swipe-wrap').dataset.id;
+    if (confirm('确定要删除这个菜谱吗？')) deleteRecipe(id);
+  }
 });
 
 // ============ INIT ============
