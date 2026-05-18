@@ -115,6 +115,11 @@ body.dark .search-bar input { background:#2A2318; border-color:#3a3020; color:#E
 .empty { text-align:center; padding:60px 20px; color:var(--gray); }
 .empty .icon { font-size:3rem; margin-bottom:var(--sp-md); opacity:.5; }
 
+/* Floating button */
+.fab { position:fixed; bottom:24px; right:24px; width:56px; height:56px; border-radius:50%; background:var(--orange); color:#fff; border:none; font-size:1.6rem; cursor:pointer; z-index:100; box-shadow:0 4px 16px rgba(232,119,46,.4); transition:transform .15s; display:flex; align-items:center; justify-content:center; }
+.fab:active { transform:scale(.92); }
+body.dark .fab { box-shadow:0 4px 16px rgba(232,119,46,.25); }
+
 /* Modal */
 .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.5); z-index:200; display:flex; align-items:flex-end; justify-content:center; }
 .modal-overlay.hidden { display:none; }
@@ -341,12 +346,14 @@ function renderRecipes() {
   }
 
   if (recipes.length === 0) {
-    h += `<div class="empty"><div class="icon">🍳</div><p>${data.recipes.length?'没有找到菜谱':'还没有菜谱'}</p></div>`;
+    h += `<div class="empty"><div class="icon">🍳</div><p>${data.recipes.length?'没有找到菜谱':'还没有菜谱'}</p>
+      ${data.recipes.length === 0 ? '<button class="btn btn-primary" onclick="navigate(\'recipes\',\'form\')">➕ 新建菜谱</button>' : ''}
+    </div>`;
   } else {
     recipes.forEach(r => h += recipeCardHTML(r));
   }
 
-  el.innerHTML = h + `<div style="height:70px"></div>`;
+  el.innerHTML = h + `<button class="fab" onclick="navigate('recipes','form')" title="新建菜谱">+</button><div style="height:70px"></div>`;
 }
 
 function recipeCardHTML(r) {
