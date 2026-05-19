@@ -178,7 +178,7 @@ body.dark .action-bar { background:#2A2318; border-color:#3a3020; }
 </head>
 <body>
 
-<header>🍳 菜谱<span id="sync-badge" style="font-size:.6rem;margin-left:8px;opacity:.7;vertical-align:middle;background:#ffffff20;padding:2px 8px;border-radius:10px;">🔄 同步中</span></header>
+<header>🥗 菜谱<span id="sync-badge" style="font-size:.6rem;margin-left:8px;opacity:.7;vertical-align:middle;background:#ffffff20;padding:2px 8px;border-radius:10px;">🔄 同步中</span></header>
 
 <nav>
   <button data-tab="recipes" class="active"><span>📖</span> 菜谱</button>
@@ -355,7 +355,7 @@ function renderRecipes() {
   }
 
   if (recipes.length === 0) {
-    h += `<div class="empty"><div class="icon">🍳</div><p>${data.recipes.length?'没有找到菜谱':'还没有菜谱'}</p>
+    h += `<div class="empty"><div class="icon">🥗</div><p>${data.recipes.length?'没有找到菜谱':'还没有菜谱'}</p>
       ${data.recipes.length === 0 ? '<button class="btn btn-primary" onclick="navigate(\'recipes\',\'form\')">➕ 新建菜谱</button>' : ''}
     </div>`;
   } else {
